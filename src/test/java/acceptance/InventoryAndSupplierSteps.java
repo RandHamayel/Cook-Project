@@ -53,7 +53,7 @@ public class InventoryAndSupplierSteps {
     @When("the system checks inventory at {string}")
     public void checkInventoryAtTime(String time) {
         inventory.setCheckTime(time);
-        if(time.equals("5pm") {
+        if(time.equals("5pm")) {
             purchaseOrderGenerated = true;
         }
     }
