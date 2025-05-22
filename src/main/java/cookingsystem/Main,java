@@ -1,0 +1,238 @@
+package cookingsystem;
+
+import java.sql.Date;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+
+public class Main {
+    private static Scanner scanner = new Scanner(System.in);
+    private static Map<String, User> users = new HashMap<>();
+    private static User loggedInUser = null;
+
+    public static void main(String[] args) {
+        seedSampleData();
+
+        while (true) {
+            if (loggedInUser == null) {
+                showWelcomeMenu();
+            } else {
+                showRoleBasedMenu();
+            }
+        }
+    }
+
+    private static void seedSampleData() {
+        // Add some users
+        Customer c1 = new Customer("alice", "pass");
+        c1.addPreference("Vegan");
+        c1.addAllergy("Peanuts");
+        c1.addAllergy("Dairy");
+        c1.addOrder(new Order(parseDate("2025-05-01"), Arrays.asList("Vegan Burger", "Salad"), 12));
+        c1.addOrder(new Order(parseDate("2025-04-28"), Arrays.asList("Tofu Stir-fry"), 10));
+        c1.addOrder(new Order(parseDate("2025-04-25"), Arrays.asList("Lentil Soup", "Bread"), 9.50));
+        c1.addOrder(new Order(parseDate("2025-04-23"), Arrays.asList("Pasta Primavera"), 11.40));
+        c1.addOrder(new Order(parseDate("2025-04-20"), Arrays.asList("Grilled Veggie Wrap"), 8.95));
+
+        users.put(c1.getUsername(), c1);
+        users.put("bob", new Chef("bob", "pass"));
+        users.put("admin", new Admin("admin", "admin"));
+
+        // Another customer without orders
+        Customer c2 = new Customer("john", "pass");
+        c2.addPreference("Keto");
+        c2.addAllergy("Shellfish");
+        users.put(c2.getUsername(), c2);
+    }
+
+    private static Date parseDate(String dateStr) {
+        try {
+            return (Date) new SimpleDateFormat("yyyy-MM-dd").parse(dateStr);
+        } catch (Exception e) {
+            return new Date(0);
+        }
+    }
+
+    private static void showWelcomeMenu() {
+        System.out.println("\n=== Welcome to Meal Management System ===");
+        System.out.println("1. Sign Up");
+        System.out.println("2. Log In");
+        System.out.println("3. Exit");
+        System.out.print("Choose option: ");
+        String option = scanner.nextLine();
+
+        switch (option) {
+            case "1": signUp(); break;
+            case "2": logIn(); break;
+            case "3": System.out.println("Goodbye!"); System.exit(0);
+            default: System.out.println("Invalid option.");
+        }
+    }
+
+    private static void signUp() {
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        if (users.containsKey(username)) {
+            System.out.println("Username already exists.");
+            return;
+        }
+
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        System.out.print("Select role (Customer/Chef/Admin): ");
+        String role = scanner.nextLine();
+
+        User user = null;
+        switch (role.toLowerCase()) {
+            case "customer": user = new Customer(username, password); break;
+            case "chef": user = new Chef(username, password); break;
+            case "admin": user = new Admin(username, password); break;
+            default:
+                System.out.println("Invalid role.");
+                return;
+        }
+
+        users.put(username, user);
+        System.out.println(role + " registered successfully!");
+    }
+
+    private static void logIn() {
+        System.out.print("Username: ");
+        String username = scanner.nextLine();
+
+        System.out.print("Password: ");
+        String password = scanner.nextLine();
+
+        User user = users.get(username);
+        if (user != null && user.checkPassword(password)) {
+            loggedInUser = user;
+            System.out.println("Welcome " + loggedInUser.getUsername() + " (" + loggedInUser.getRole() + ")");
+        } else {
+            System.out.println("Invalid credentials.");
+        }
+    }
+
+    private static void showRoleBasedMenu() {
+        switch (loggedInUser.getRole()) {
+            case "Customer": customerMenu(); break;
+            case "Chef": chefMenu(); break;
+            case "Admin": adminMenu(); break;
+        }
+    }
+
+    private static void customerMenu() {
+        Customer c = (Customer) loggedInUser;
+        System.out.println("\n=== Customer Menu ===");
+        System.out.println("1. Add/Update Dietary Preference");
+        System.out.println("2. Add Allergy");
+        System.out.println("3. View Past Orders");
+        System.out.println("4. View Dietary Preferences & Allergies");
+        System.out.println("5. Logout");
+        System.out.print("Choose option: ");
+        String option = scanner.nextLine();
+
+        switch (option) {
+            case "1":
+                System.out.print("Enter dietary preference to add: ");
+                String pref = scanner.nextLine();
+                c.addPreference(pref);
+                break;
+            case "2":
+                System.out.print("Enter allergy to add: ");
+                String allergy = scanner.nextLine();
+                c.addAllergy(allergy);
+                break;
+            case "3":
+                System.out.println("Date       | Items                      | Total Price");
+                for (Order o : c.getOrderHistory()) {
+                    System.out.println(o);
+                }
+                break;
+            case "4":
+                System.out.println("Dietary Preferences: " + c.getDietaryPreferences());
+                System.out.println("Allergies: " + c.getAllergies());
+                break;
+            case "5":
+                loggedInUser = null;
+                System.out.println("Logged out.");
+                break;
+            default:
+                System.out.println("Invalid option.");
+        }
+    }
+
+    private static void chefMenu() {
+        Chef chef = (Chef) loggedInUser;
+        System.out.println("\n=== Chef Menu ===");
+        System.out.println("1. View Customer Profile");
+        System.out.println("2. Logout");
+        System.out.print("Choose option: ");
+        String option = scanner.nextLine();
+
+        switch (option) {
+            case "1":
+                System.out.println("Customers:");
+                users.values().stream()
+                    .filter(u -> u instanceof Customer)
+                    .forEach(c -> System.out.println("- " + c.getUsername()));
+
+                System.out.print("Enter customer username to view profile: ");
+                String custName = scanner.nextLine();
+
+                User selectedUser = users.get(custName);
+                if (selectedUser instanceof Customer) {
+                    Customer cust = (Customer) selectedUser;
+                    System.out.println("Dietary Preferences: " + cust.getDietaryPreferences());
+
+                    System.out.print("Allergies: ");
+                    List<String> allergies = cust.getAllergies();
+                    for (String allergy : allergies) {
+                        if (allergy.equalsIgnoreCase("Peanuts") ||
+                            allergy.equalsIgnoreCase("Dairy") ||
+                            allergy.equalsIgnoreCase("Shellfish")) {
+                            // Highlight in "red" (simulated with ***)
+                            System.out.print("***" + allergy + "*** ");
+                        } else {
+                            System.out.print(allergy + " ");
+                        }
+                    }
+                    System.out.println();
+                } else {
+                    System.out.println("Customer not found.");
+                }
+                break;
+            case "2":
+                loggedInUser = null;
+                System.out.println("Logged out.");
+                break;
+            default:
+                System.out.println("Invalid option.");
+        }
+    }
+
+    private static void adminMenu() {
+        System.out.println("\n=== Admin Menu ===");
+        System.out.println("1. List all users");
+        System.out.println("2. Logout");
+        System.out.print("Choose option: ");
+        String option = scanner.nextLine();
+
+        switch (option) {
+            case "1":
+                System.out.println("All registered users:");
+                users.values().forEach(u -> System.out.println(u.getUsername() + " (" + u.getRole() + ")"));
+                break;
+            case "2":
+                loggedInUser = null;
+                System.out.println("Logged out.");
+                break;
+            default:
+                System.out.println("Invalid option.");
+        }
+    }
+}
